@@ -1,5 +1,5 @@
 // ─── Assignment Hub Service Worker ───────────────────────────────────────────
-const CACHE_NAME = 'assignment-hub-v1';
+const CACHE_NAME = 'assignment-hub-v09';
 
 // Files to cache on install
 const PRECACHE_ASSETS = [
