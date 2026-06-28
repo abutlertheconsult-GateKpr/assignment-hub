@@ -932,6 +932,26 @@
   </div>
 </div>
 
+<!-- SET PASSWORD MODAL (shown when admin clicks invite link) -->
+<div class="modal-overlay" id="setPasswordModal" style="display:flex;">
+  <div class="modal">
+    <h3>🔑 Set Your Password</h3>
+    <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">Welcome! Choose a password to activate your admin account.</p>
+    <div id="setPasswordError" style="display:none;margin-bottom:12px;padding:10px 12px;background:#fdecea;border-radius:6px;font-size:13px;color:var(--danger);"></div>
+    <div class="form-group" style="margin-bottom:12px;">
+      <label>New Password</label>
+      <input class="form-input" id="newPassword" type="password" placeholder="At least 6 characters">
+    </div>
+    <div class="form-group" style="margin-bottom:4px;">
+      <label>Confirm Password</label>
+      <input class="form-input" id="confirmPassword" type="password" placeholder="Repeat password" onkeydown="if(event.key==='Enter')doSetPassword()">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" id="setPasswordBtn" onclick="doSetPassword()">Set Password & Sign In</button>
+    </div>
+  </div>
+</div>
+
 <!-- MAP LIGHTBOX -->
 <div class="map-lightbox-overlay" id="mapLightbox" onclick="closeMapLightbox(event)">
   <div class="map-lightbox">
@@ -1546,11 +1566,67 @@ async function handleExcelImport(e) {
   reader.readAsArrayBuffer(file);
 }
 
+// ─── SET PASSWORD (invite flow) ───────────────────────────────────────────────
+async function doSetPassword() {
+  const pw  = document.getElementById('newPassword').value;
+  const pw2 = document.getElementById('confirmPassword').value;
+  const errEl = document.getElementById('setPasswordError');
+  const btn = document.getElementById('setPasswordBtn');
+
+  if (!pw || pw.length < 6) {
+    errEl.textContent = 'Password must be at least 6 characters.';
+    errEl.style.display = 'block'; return;
+  }
+  if (pw !== pw2) {
+    errEl.textContent = 'Passwords do not match.';
+    errEl.style.display = 'block'; return;
+  }
+
+  btn.textContent = 'Saving…';
+  btn.disabled = true;
+
+  const { data: updData, error } = await sb.auth.updateUser({ password: pw });
+  if (error) {
+    errEl.textContent = error.message;
+    errEl.style.display = 'block';
+    btn.textContent = 'Set Password & Sign In';
+    btn.disabled = false;
+    return;
+  }
+
+  currentUser = updData.user;
+  isAdmin = true;
+  document.getElementById('setPasswordModal').style.display = 'none';
+  updateAuthUI();
+  await loadFromSupabase();
+  showToast('Password set! You are now signed in as admin ✓');
+}
+
 // ─── INIT ─────────────────────────────────────────────────────────────────────
 (async () => {
+  // Hide set password modal by default
+  document.getElementById('setPasswordModal').style.display = 'none';
+
   // Restore my name
   myName = localStorage.getItem('convention_myname') || '';
   if (myName) document.getElementById('myNameInput').value = myName;
+
+  // Detect invite/recovery token in URL hash (e.g. #access_token=...&type=invite)
+  const hash = window.location.hash;
+  if (hash && (hash.includes('type=invite') || hash.includes('type=recovery'))) {
+    // Let Supabase exchange the token automatically
+    const { data: sessionData, error } = await sb.auth.getSession();
+    if (sessionData?.session?.user) {
+      currentUser = sessionData.session.user;
+      // Show set password modal
+      document.getElementById('setPasswordModal').style.display = 'flex';
+      // Clear the hash from the URL so it looks clean
+      history.replaceState(null, '', window.location.pathname);
+      await loadFromSupabase();
+      updateAuthUI();
+      return;
+    }
+  }
 
   // Check if already logged in from a previous session
   const { data: sessionData } = await sb.auth.getSession();
