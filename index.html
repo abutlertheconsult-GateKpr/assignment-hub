@@ -862,8 +862,9 @@
       <p style="font-size:13px;color:var(--text-muted);margin-bottom:14px;">
         Upload an Excel file (.xlsx) with your assignments. The file must have a sheet named
         <strong>Friday</strong>, <strong>Saturday</strong>, or <strong>Sunday</strong> (or all three).
-        Each sheet needs these columns in order:
-        <strong>Name, Congregation, Phone, Location, Time</strong>.
+        Each row supports up to <strong>3 location/time slots</strong> per person:
+        <strong>Name, Congregation, Phone, Location 1, Time 1, Location 2, Time 2, Location 3, Time 3</strong>.
+        Leave extra slot columns blank if not needed.
       </p>
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px;">
         <button class="btn btn-gold" onclick="downloadExcelTemplate()">⬇ Download Template</button>
@@ -1460,29 +1461,34 @@ function renderAll() {
 
 function downloadExcelTemplate() {
   const wb = XLSX.utils.book_new();
-  const headers = [['Name', 'Congregation', 'Phone', 'Location', 'Time']];
+
+  // Up to 3 location/time slot pairs
+  const headers = [['Name', 'Congregation', 'Phone',
+    'Location 1', 'Time 1',
+    'Location 2', 'Time 2',
+    'Location 3', 'Time 3']];
+
   const sampleFri = [
-    ['Smith, John',    'Congregation A', '555-100-0001', 'CL - Door 1',  '9:00 AM'],
-    ['Doe, Jane',      'Congregation B', '555-100-0002', 'EL - Section 3','1:00 PM'],
+    ['Smith, John',    'Congregation A', '555-100-0001', 'CL - Door 1',   '9:00 AM',  'EL - Section 3', '1:00 PM',  '',               ''        ],
+    ['Doe, Jane',      'Congregation B', '555-100-0002', 'CL - Door 2',   '8:00 AM',  '',               '',         '',               ''        ],
+    ['Brown, Mark',    'Congregation C', '555-100-0003', 'EL - Section 1','9:00 AM',  'CL - Door 3',    '12:00 PM', 'EL - Section 2', '3:00 PM' ],
   ];
   const sampleSat = [
-    ['Brown, Mark',   'Congregation C', '555-100-0003', 'CL - Door 2',  '10:00 AM'],
+    ['Garcia, Maria',  'Congregation D', '555-100-0004', 'CL - Door 1',   '10:00 AM', 'EL - Section 4', '2:00 PM',  '',               ''        ],
   ];
   const sampleSun = [
-    ['Garcia, Maria', 'Congregation D', '555-100-0004', 'EL - Section 1','8:00 AM'],
+    ['Johnson, Lee',   'Congregation E', '555-100-0005', 'EL - Section 2','8:30 AM',  '',               '',         '',               ''        ],
   ];
 
   ['Friday','Saturday','Sunday'].forEach((day, i) => {
     const sample = [sampleFri, sampleSat, sampleSun][i];
     const ws = XLSX.utils.aoa_to_sheet([...headers, ...sample]);
-
-    // Column widths
     ws['!cols'] = [
-      { wch: 22 }, { wch: 20 }, { wch: 16 }, { wch: 22 }, { wch: 12 }
+      { wch: 22 }, { wch: 20 }, { wch: 16 },
+      { wch: 20 }, { wch: 12 },
+      { wch: 20 }, { wch: 12 },
+      { wch: 20 }, { wch: 12 },
     ];
-
-    // Style header row bold (SheetJS community doesn't support cell styles,
-    // but column headers are clear enough from the sample rows)
     XLSX.utils.book_append_sheet(wb, ws, day);
   });
 
@@ -1513,31 +1519,45 @@ async function handleExcelImport(e) {
         if (!sheet) continue;
 
         const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
-        if (rows.length < 2) continue; // header only, skip
+        if (rows.length < 2) continue;
 
-        const dataRows = rows.slice(1); // skip header
+        const dataRows = rows.slice(1);
         const toInsert = [];
 
         for (const row of dataRows) {
           const name = String(row[0] || '').trim();
-          if (!name) { errorRows++; continue; } // name required
-          toInsert.push({
-            day:          dayLabel.toLowerCase(),
-            name,
-            congregation: String(row[1] || '').trim(),
-            phone:        String(row[2] || '').trim(),
-            location:     String(row[3] || '').trim(),
-            time:         String(row[4] || '').trim(),
+          if (!name) { errorRows++; continue; }
+
+          const congregation = String(row[1] || '').trim();
+          const phone        = String(row[2] || '').trim();
+
+          // Columns 3-4: slot 1, 5-6: slot 2, 7-8: slot 3
+          const slots = [
+            { location: String(row[3] || '').trim(), time: String(row[4] || '').trim() },
+            { location: String(row[5] || '').trim(), time: String(row[6] || '').trim() },
+            { location: String(row[7] || '').trim(), time: String(row[8] || '').trim() },
+          ].filter(s => s.location); // only include slots with a location
+
+          // If no slots at all, still create one blank row
+          if (!slots.length) slots.push({ location: '', time: '' });
+
+          slots.forEach(slot => {
+            toInsert.push({
+              day: dayLabel.toLowerCase(),
+              name,
+              congregation,
+              phone,
+              location: slot.location,
+              time:     slot.time,
+            });
           });
         }
 
         if (!toInsert.length) continue;
 
-        // Batch insert into Supabase
         const { data: inserted, error } = await sb.from('assignments').insert(toInsert).select();
         if (error) throw error;
 
-        // Add to local state
         inserted.forEach(r => {
           data[dayLabel.toLowerCase()].push({
             id: r.id, name: r.name, congregation: r.congregation,
@@ -1551,7 +1571,7 @@ async function handleExcelImport(e) {
 
       renderAll();
 
-      let msg = `<span style="color:var(--success)">✓ Imported ${totalRows} assignment${totalRows !== 1 ? 's' : ''}`;
+      let msg = `<span style="color:var(--success)">✓ Imported ${totalRows} assignment slot${totalRows !== 1 ? 's' : ''}`;
       if (results.length) msg += ` — ${results.join(', ')}`;
       if (errorRows) msg += `. ${errorRows} row(s) skipped (missing name)`;
       msg += '.</span>';
