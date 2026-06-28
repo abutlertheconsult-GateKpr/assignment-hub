@@ -1,0 +1,1568 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Assignment Hub</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@600;700&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --navy: #1a2744;
+    --navy-mid: #243358;
+    --navy-light: #2e4070;
+    --gold: #c9a84c;
+    --gold-light: #e8c96a;
+    --gold-pale: #fdf6e3;
+    --cream: #f8f7f4;
+    --white: #ffffff;
+    --text: #1a2744;
+    --text-muted: #6b7590;
+    --border: #dde2ef;
+    --danger: #c0392b;
+    --success: #27ae60;
+    --shadow-sm: 0 1px 3px rgba(26,39,68,0.08);
+    --shadow-md: 0 4px 16px rgba(26,39,68,0.12);
+    --shadow-lg: 0 8px 32px rgba(26,39,68,0.16);
+  }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: var(--cream);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* HEADER */
+  .app-header {
+    background: var(--navy);
+    color: white;
+    padding: 0 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    height: 60px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: var(--shadow-md);
+  }
+  .app-header h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--gold-light);
+    letter-spacing: 0.3px;
+    flex: 1;
+  }
+  .header-year {
+    font-size: 12px;
+    color: rgba(255,255,255,0.4);
+    font-weight: 500;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  /* MY CARD */
+  .my-card {
+    background: linear-gradient(135deg, var(--navy) 0%, var(--navy-light) 100%);
+    border-bottom: 3px solid var(--gold);
+    padding: 20px 24px;
+  }
+  .my-card-inner {
+    max-width: 900px;
+    margin: 0 auto;
+  }
+  .my-card-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  .my-card-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--gold);
+  }
+  .my-name-input {
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(201,168,76,0.4);
+    border-radius: 6px;
+    padding: 6px 12px;
+    color: white;
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    width: 200px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .my-name-input::placeholder { color: rgba(255,255,255,0.35); }
+  .my-name-input:focus { border-color: var(--gold); }
+  .my-assignments-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 10px;
+  }
+  .my-assignment-chip {
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(201,168,76,0.25);
+    border-radius: 8px;
+    padding: 10px 14px;
+  }
+  .my-chip-day {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 4px;
+  }
+  .my-chip-location {
+    font-size: 13px;
+    font-weight: 600;
+    color: white;
+  }
+  .my-chip-time {
+    font-size: 12px;
+    color: rgba(255,255,255,0.6);
+    margin-top: 2px;
+  }
+  .my-chip-empty {
+    font-size: 12px;
+    color: rgba(255,255,255,0.3);
+    font-style: italic;
+  }
+
+  /* TABS */
+  .tabs-bar {
+    background: var(--navy-mid);
+    padding: 0 24px;
+    display: flex;
+    gap: 0;
+    overflow-x: auto;
+  }
+  .tab-btn {
+    padding: 14px 20px;
+    font-size: 13px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.5);
+    cursor: pointer;
+    border: none;
+    background: none;
+    border-bottom: 3px solid transparent;
+    transition: all 0.2s;
+    white-space: nowrap;
+    letter-spacing: 0.3px;
+  }
+  .tab-btn:hover { color: rgba(255,255,255,0.8); }
+  .tab-btn.active { color: var(--gold-light); border-bottom-color: var(--gold); }
+
+  /* MAIN */
+  .main { max-width: 900px; margin: 0 auto; padding: 24px; }
+
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* SEARCH */
+  .search-section { margin-bottom: 28px; }
+  .search-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+  .search-input {
+    flex: 1;
+    padding: 10px 14px;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s;
+    background: white;
+  }
+  .search-input:focus { border-color: var(--navy-light); }
+  .btn {
+    padding: 10px 18px;
+    border-radius: 8px;
+    border: none;
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .btn-primary { background: var(--navy); color: white; }
+  .btn-primary:hover { background: var(--navy-light); }
+  .btn-gold { background: var(--gold); color: var(--navy); }
+  .btn-gold:hover { background: var(--gold-light); }
+  .btn-sm { padding: 6px 12px; font-size: 12px; }
+  .btn-danger { background: #fdecea; color: var(--danger); border: 1px solid #f5c6c2; }
+  .btn-danger:hover { background: #f8d7d5; }
+  .btn-ghost { background: transparent; color: var(--text-muted); border: 1px solid var(--border); }
+  .btn-ghost:hover { background: var(--cream); }
+
+  /* SEARCH RESULTS */
+  .search-results {
+    margin-top: 16px;
+    background: white;
+    border-radius: 10px;
+    border: 1.5px solid var(--border);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+  }
+  .search-result-row {
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr auto;
+    gap: 12px;
+    align-items: center;
+  }
+  .search-result-row:last-child { border-bottom: none; }
+  .result-name { font-weight: 600; font-size: 14px; }
+  .result-meta { font-size: 12px; color: var(--text-muted); }
+  .result-tag {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+  .tag-friday { background: #e8f4fd; color: #1a6fa8; }
+  .tag-saturday { background: #edf7ed; color: #1a7a3c; }
+  .tag-sunday { background: #fdf3e8; color: #a0560a; }
+
+  /* SWAP SECTION */
+  .swap-section {
+    background: white;
+    border-radius: 10px;
+    border: 1.5px solid var(--border);
+    padding: 20px;
+    margin-bottom: 28px;
+    box-shadow: var(--shadow-sm);
+  }
+  .swap-section h3 {
+    font-size: 14px;
+    font-weight: 700;
+    margin-bottom: 14px;
+    color: var(--navy);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .swap-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .swap-arrow { color: var(--text-muted); font-size: 18px; }
+
+  /* SECTION HEADER */
+  .section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+    margin-top: 8px;
+  }
+  .section-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--navy);
+  }
+  .section-subtitle {
+    font-size: 12px;
+    color: var(--text-muted);
+    font-weight: 500;
+  }
+
+  /* ASSIGNMENT TABLE */
+  .assignment-table {
+    background: white;
+    border-radius: 10px;
+    border: 1.5px solid var(--border);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+    margin-bottom: 20px;
+  }
+  .table-head {
+    background: var(--navy);
+    display: grid;
+    grid-template-columns: 1.4fr 1.2fr 1.4fr 1fr auto auto;
+    gap: 0;
+    padding: 10px 18px;
+  }
+  .th {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.55);
+  }
+  .assignment-row {
+    display: grid;
+    grid-template-columns: 1.4fr 1.2fr 1.4fr 1fr auto auto;
+    gap: 0;
+    padding: 13px 18px;
+    border-bottom: 1px solid var(--border);
+    align-items: center;
+    transition: background 0.15s;
+  }
+  .assignment-row:last-child { border-bottom: none; }
+  .assignment-row:hover { background: #f9f8ff; }
+  .row-name { font-weight: 600; font-size: 14px; }
+  .row-cong { font-size: 12px; color: var(--text-muted); }
+  .row-phone { font-size: 11px; margin-top: 2px; }
+  .row-phone a { color: var(--text-muted); text-decoration: none; }
+  .row-phone a:hover { color: var(--navy-light); text-decoration: underline; }
+  .row-location { font-size: 13px; font-weight: 500; }
+  .row-time { font-size: 13px; color: var(--text-muted); }
+  .row-actions { display: flex; gap: 6px; }
+
+  /* MAP LINK */
+  .map-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--navy-light);
+    text-decoration: none;
+    padding: 3px 8px;
+    border-radius: 5px;
+    border: 1px solid var(--border);
+    transition: all 0.15s;
+  }
+  .map-link:hover { background: var(--navy); color: white; border-color: var(--navy); }
+
+  /* ADD FORM */
+  .add-form {
+    background: white;
+    border-radius: 10px;
+    border: 1.5px solid var(--border);
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: var(--shadow-sm);
+    display: none;
+  }
+  .add-form.open { display: block; }
+  .form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+  .form-group { display: flex; flex-direction: column; gap: 4px; }
+  .form-group label { font-size: 12px; font-weight: 600; color: var(--text-muted); letter-spacing: 0.3px; }
+  .form-input {
+    padding: 9px 12px;
+    border: 1.5px solid var(--border);
+    border-radius: 7px;
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.2s;
+    background: var(--cream);
+  }
+  .form-input:focus { border-color: var(--navy-light); background: white; }
+  .form-row { display: flex; gap: 8px; }
+
+  /* MAPS TAB */
+  .maps-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 16px;
+    margin-top: 16px;
+  }
+  .map-card {
+    background: white;
+    border-radius: 10px;
+    border: 1.5px solid var(--border);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+    transition: box-shadow 0.15s;
+  }
+  .map-card:hover { box-shadow: var(--shadow-md); }
+  .map-card-img {
+    width: 100%;
+    aspect-ratio: 4/3;
+    object-fit: cover;
+    display: block;
+    background: var(--cream);
+  }
+  .map-card-img-placeholder {
+    width: 100%;
+    aspect-ratio: 4/3;
+    background: linear-gradient(135deg, var(--cream), var(--border));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    font-size: 32px;
+  }
+  .map-card-footer {
+    padding: 10px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .map-card-name { font-size: 13px; font-weight: 600; }
+
+  /* CAPTAINS TAB */
+  .captains-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 14px;
+    margin-top: 16px;
+  }
+  .captain-card {
+    background: white;
+    border-radius: 10px;
+    border: 1.5px solid var(--border);
+    padding: 18px;
+    box-shadow: var(--shadow-sm);
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    transition: box-shadow 0.15s;
+  }
+  .captain-card:hover { box-shadow: var(--shadow-md); }
+  .captain-avatar {
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--navy), var(--navy-light));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--gold-light);
+    font-family: 'Playfair Display', serif;
+    font-size: 18px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  .captain-info { flex: 1; min-width: 0; }
+  .captain-name { font-weight: 700; font-size: 14px; }
+  .captain-role { font-size: 11px; color: var(--text-muted); font-weight: 500; margin-top: 2px; }
+  .captain-phone { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+  .call-btn {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: var(--success);
+    color: white;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    transition: all 0.15s;
+    flex-shrink: 0;
+    text-decoration: none;
+  }
+  .call-btn:hover { background: #219a52; transform: scale(1.08); }
+
+  /* EMPTY STATE */
+  .empty-state {
+    text-align: center;
+    padding: 48px 24px;
+    color: var(--text-muted);
+  }
+  .empty-icon { font-size: 36px; margin-bottom: 10px; }
+  .empty-msg { font-size: 14px; }
+
+  /* MODAL */
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(26,39,68,0.5);
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    display: none;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: white;
+    border-radius: 12px;
+    padding: 24px;
+    width: 90%;
+    max-width: 440px;
+    box-shadow: var(--shadow-lg);
+  }
+  .modal h3 { font-size: 16px; font-weight: 700; margin-bottom: 16px; color: var(--navy); }
+  .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+
+  /* TOAST */
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: var(--navy);
+    color: white;
+    padding: 12px 18px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    box-shadow: var(--shadow-lg);
+    z-index: 300;
+    transform: translateY(80px);
+    opacity: 0;
+    transition: all 0.3s cubic-bezier(0.34,1.56,0.64,1);
+  }
+  .toast.show { transform: translateY(0); opacity: 1; }
+
+  /* MAP LIGHTBOX */
+  .map-lightbox-overlay {
+    position: fixed; inset: 0;
+    background: rgba(10,18,40,0.85);
+    z-index: 400;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  .map-lightbox-overlay.open { display: flex; }
+  .map-lightbox {
+    background: white;
+    border-radius: 12px;
+    overflow: hidden;
+    max-width: 90vw;
+    max-height: 88vh;
+    box-shadow: var(--shadow-lg);
+    display: flex;
+    flex-direction: column;
+  }
+  .map-lightbox-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px;
+    background: var(--navy);
+    color: white;
+  }
+  .map-lightbox-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--gold-light);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .map-lightbox-close {
+    background: rgba(255,255,255,0.15);
+    border: none;
+    color: white;
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    font-size: 16px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.15s;
+  }
+  .map-lightbox-close:hover { background: rgba(255,255,255,0.3); }
+  .map-lightbox img {
+    max-width: 100%;
+    max-height: calc(88vh - 56px);
+    object-fit: contain;
+    display: block;
+  }
+  .map-lightbox-empty {
+    padding: 48px 32px;
+    text-align: center;
+    color: var(--text-muted);
+  }
+  .map-lightbox-empty .empty-icon { font-size: 36px; margin-bottom: 10px; }
+  .map-lightbox-empty p { font-size: 13px; }
+  /* level badge colors */
+  .map-link-cl { background: #e8f0fd; color: #1a4fa8; border-color: #c4d4f5; }
+  .map-link-cl:hover { background: #1a4fa8; color: white; border-color: #1a4fa8; }
+  .map-link-el { background: #e8f7ee; color: #1a7a3c; border-color: #b8e8c8; }
+  .map-link-el:hover { background: #1a7a3c; color: white; border-color: #1a7a3c; }
+
+  /* SCROLLBAR */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  @media (max-width: 640px) {
+    .table-head, .assignment-row { grid-template-columns: 1fr 1fr auto; }
+    .th:nth-child(2), .th:nth-child(4), .assignment-row > .row-cong, .assignment-row > .row-time { display: none; }
+    .form-grid { grid-template-columns: 1fr; }
+    .search-result-row { grid-template-columns: 1fr 1fr auto; }
+    .my-assignments-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app-header">
+  <h1>Assignment Hub</h1>
+  <div style="display:flex;align-items:center;gap:10px;">
+    <span class="header-year">2026</span>
+    <div id="authStatus" style="display:flex;align-items:center;gap:8px;">
+      <span id="authLabel" style="font-size:12px;color:rgba(255,255,255,0.5);">View Only</span>
+      <button id="authBtn" onclick="openLoginModal()" style="padding:5px 12px;border-radius:6px;border:1px solid rgba(201,168,76,0.4);background:transparent;color:var(--gold-light);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">Admin Login</button>
+    </div>
+  </div>
+</div>
+
+<!-- MY CARD -->
+<div class="my-card">
+  <div class="my-card-inner">
+    <div class="my-card-header">
+      <span class="my-card-label">My Assignments</span>
+      <input class="my-name-input" id="myNameInput" type="text" placeholder="Enter your name…" oninput="refreshMyCard()">
+    </div>
+    <div class="my-assignments-grid" id="myAssignmentsGrid">
+      <div class="my-chip-empty" style="color:rgba(255,255,255,0.3);font-size:13px;font-style:italic;">Enter your name above to see your assignments</div>
+    </div>
+  </div>
+</div>
+
+<!-- TABS -->
+<div class="tabs-bar">
+  <button class="tab-btn active" onclick="switchTab('lookup')">🔍 Lookup</button>
+  <button class="tab-btn" onclick="switchTab('friday')">Friday</button>
+  <button class="tab-btn" onclick="switchTab('saturday')">Saturday</button>
+  <button class="tab-btn" onclick="switchTab('sunday')">Sunday</button>
+  <button class="tab-btn" onclick="switchTab('maps')">🗺 Maps</button>
+  <button class="tab-btn" onclick="switchTab('captains')">👥 Captains</button>
+  <button class="tab-btn" onclick="switchTab('share')">📤 Share</button>
+</div>
+
+<div class="main">
+
+  <!-- LOOKUP TAB -->
+  <div class="tab-panel active" id="tab-lookup">
+    <div class="search-section">
+      <div class="section-header">
+        <div>
+          <div class="section-title">Search Assignments</div>
+          <div class="section-subtitle">Find any person's assignment across all days</div>
+        </div>
+      </div>
+      <div class="search-row">
+        <input class="search-input" id="lookupInput" type="text" placeholder="Search by name or congregation…" oninput="runSearch()">
+      </div>
+      <div class="search-results" id="searchResults" style="display:none;"></div>
+    </div>
+
+    <div class="swap-section">
+      <h3>⇄ Swap Assignments</h3>
+      <div class="swap-row">
+        <input class="form-input" id="swapName1" type="text" placeholder="Person A name" style="width:180px;">
+        <span class="swap-arrow">⇄</span>
+        <input class="form-input" id="swapName2" type="text" placeholder="Person B name" style="width:180px;">
+        <button class="btn btn-gold" onclick="doSwap()">Swap</button>
+      </div>
+      <div id="swapMessage" style="margin-top:10px;font-size:13px;"></div>
+    </div>
+  </div>
+
+  <!-- FRIDAY TAB -->
+  <div class="tab-panel" id="tab-friday">
+    <div class="section-header">
+      <div>
+        <div class="section-title">Friday</div>
+        <div class="section-subtitle" id="friday-count">0 assignments</div>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="toggleForm('friday')">+ Add Assignment</button>
+    </div>
+    <div class="add-form" id="form-friday">
+      <div class="form-grid">
+        <div class="form-group"><label>Name</label><input class="form-input" id="fri-name" placeholder="Full name"></div>
+        <div class="form-group"><label>Congregation</label><input class="form-input" id="fri-cong" placeholder="Congregation"></div>
+        <div class="form-group"><label>Mobile #</label><input class="form-input" id="fri-phone" placeholder="555-867-5309" type="tel"></div>
+        <div class="form-group"><label>Location</label><input class="form-input" id="fri-location" placeholder="Assignment location"></div>
+        <div class="form-group"><label>Time</label><input class="form-input" id="fri-time" placeholder="e.g. 9:00 AM"></div>
+      </div>
+      <div class="form-row">
+        <button class="btn btn-primary" onclick="addAssignment('friday')">Save</button>
+        <button class="btn btn-ghost" onclick="toggleForm('friday')">Cancel</button>
+      </div>
+    </div>
+    <div class="assignment-table">
+      <div class="table-head">
+        <div class="th">Name</div>
+        <div class="th">Congregation</div>
+        <div class="th">Location</div>
+        <div class="th">Time</div>
+        <div class="th">Map</div>
+        <div class="th"></div>
+      </div>
+      <div id="rows-friday"></div>
+    </div>
+  </div>
+
+  <!-- SATURDAY TAB -->
+  <div class="tab-panel" id="tab-saturday">
+    <div class="section-header">
+      <div>
+        <div class="section-title">Saturday</div>
+        <div class="section-subtitle" id="saturday-count">0 assignments</div>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="toggleForm('saturday')">+ Add Assignment</button>
+    </div>
+    <div class="add-form" id="form-saturday">
+      <div class="form-grid">
+        <div class="form-group"><label>Name</label><input class="form-input" id="sat-name" placeholder="Full name"></div>
+        <div class="form-group"><label>Congregation</label><input class="form-input" id="sat-cong" placeholder="Congregation"></div>
+        <div class="form-group"><label>Mobile #</label><input class="form-input" id="sat-phone" placeholder="555-867-5309" type="tel"></div>
+        <div class="form-group"><label>Location</label><input class="form-input" id="sat-location" placeholder="Assignment location"></div>
+        <div class="form-group"><label>Time</label><input class="form-input" id="sat-time" placeholder="e.g. 9:00 AM"></div>
+      </div>
+      <div class="form-row">
+        <button class="btn btn-primary" onclick="addAssignment('saturday')">Save</button>
+        <button class="btn btn-ghost" onclick="toggleForm('saturday')">Cancel</button>
+      </div>
+    </div>
+    <div class="assignment-table">
+      <div class="table-head">
+        <div class="th">Name</div>
+        <div class="th">Congregation</div>
+        <div class="th">Location</div>
+        <div class="th">Time</div>
+        <div class="th">Map</div>
+        <div class="th"></div>
+      </div>
+      <div id="rows-saturday"></div>
+    </div>
+  </div>
+
+  <!-- SUNDAY TAB -->
+  <div class="tab-panel" id="tab-sunday">
+    <div class="section-header">
+      <div>
+        <div class="section-title">Sunday</div>
+        <div class="section-subtitle" id="sunday-count">0 assignments</div>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="toggleForm('sunday')">+ Add Assignment</button>
+    </div>
+    <div class="add-form" id="form-sunday">
+      <div class="form-grid">
+        <div class="form-group"><label>Name</label><input class="form-input" id="sun-name" placeholder="Full name"></div>
+        <div class="form-group"><label>Congregation</label><input class="form-input" id="sun-cong" placeholder="Congregation"></div>
+        <div class="form-group"><label>Mobile #</label><input class="form-input" id="sun-phone" placeholder="555-867-5309" type="tel"></div>
+        <div class="form-group"><label>Location</label><input class="form-input" id="sun-location" placeholder="Assignment location"></div>
+        <div class="form-group"><label>Time</label><input class="form-input" id="sun-time" placeholder="e.g. 9:00 AM"></div>
+      </div>
+      <div class="form-row">
+        <button class="btn btn-primary" onclick="addAssignment('sunday')">Save</button>
+        <button class="btn btn-ghost" onclick="toggleForm('sunday')">Cancel</button>
+      </div>
+    </div>
+    <div class="assignment-table">
+      <div class="table-head">
+        <div class="th">Name</div>
+        <div class="th">Congregation</div>
+        <div class="th">Location</div>
+        <div class="th">Time</div>
+        <div class="th">Map</div>
+        <div class="th"></div>
+      </div>
+      <div id="rows-sunday"></div>
+    </div>
+  </div>
+
+  <!-- MAPS TAB -->
+  <div class="tab-panel" id="tab-maps">
+    <div class="section-header">
+      <div>
+        <div class="section-title">Maps</div>
+        <div class="section-subtitle">Upload and name venue maps</div>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="triggerMapUpload()">+ Add Map</button>
+    </div>
+    <input type="file" id="mapFileInput" accept="image/*" style="display:none;" onchange="handleMapUpload(event)">
+    <div class="maps-grid" id="mapsGrid"></div>
+    <div class="empty-state" id="mapsEmpty">
+      <div class="empty-icon">🗺</div>
+      <div class="empty-msg">No maps added yet. Click "+ Add Map" to upload one.</div>
+    </div>
+  </div>
+
+  <!-- CAPTAINS TAB -->
+  <div class="tab-panel" id="tab-captains">
+    <div class="section-header">
+      <div>
+        <div class="section-title">Captains</div>
+        <div class="section-subtitle">Key contacts for the convention</div>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="toggleCaptainForm()">+ Add Captain</button>
+    </div>
+    <div class="add-form" id="form-captains">
+      <div class="form-grid">
+        <div class="form-group"><label>Name</label><input class="form-input" id="cap-name" placeholder="Full name"></div>
+        <div class="form-group"><label>Role / Title</label><input class="form-input" id="cap-role" placeholder="e.g. Section Captain"></div>
+        <div class="form-group" style="grid-column:span 2"><label>Phone Number</label><input class="form-input" id="cap-phone" placeholder="e.g. 555-867-5309" type="tel"></div>
+      </div>
+      <div class="form-row">
+        <button class="btn btn-primary" onclick="addCaptain()">Save</button>
+        <button class="btn btn-ghost" onclick="toggleCaptainForm()">Cancel</button>
+      </div>
+    </div>
+    <div class="captains-grid" id="captainsGrid"></div>
+    <div class="empty-state" id="captainsEmpty">
+      <div class="empty-icon">👥</div>
+      <div class="empty-msg">No captains added yet. Click "+ Add Captain" to get started.</div>
+    </div>
+  </div>
+
+  <!-- SHARE TAB -->
+  <div class="tab-panel" id="tab-share">
+    <div class="section-header">
+      <div>
+        <div class="section-title">Share &amp; Transfer</div>
+        <div class="section-subtitle">Export, import, or send a personalized copy</div>
+      </div>
+    </div>
+
+    <!-- EXPORT -->
+    <div class="swap-section">
+      <h3>⬇️ Export Data</h3>
+      <p style="font-size:13px;color:var(--text-muted);margin-bottom:14px;">Download all assignments, maps, and captains as a JSON backup file. Use this to transfer data to another device or share with a co-admin.</p>
+      <button class="btn btn-primary" onclick="exportData()">Download assignments.json</button>
+    </div>
+
+    <!-- IMPORT -->
+    <div class="swap-section">
+      <h3>⬆️ Import Data</h3>
+      <p style="font-size:13px;color:var(--text-muted);margin-bottom:14px;">Load a previously exported JSON file. <strong>This will replace all current data.</strong></p>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+        <input type="file" id="importFileInput" accept=".json,application/json" style="display:none;" onchange="handleImport(event)">
+        <button class="btn btn-ghost" onclick="document.getElementById('importFileInput').click()">Choose JSON file…</button>
+        <span id="importFilename" style="font-size:13px;color:var(--text-muted);"></span>
+      </div>
+      <div id="importMessage" style="margin-top:10px;font-size:13px;"></div>
+    </div>
+
+    <!-- BAKE & DOWNLOAD -->
+    <div class="swap-section">
+      <h3>👤 Personalize &amp; Send</h3>
+      <p style="font-size:13px;color:var(--text-muted);margin-bottom:14px;">Generate a copy of this app with a specific person's name pre-filled and all current data baked in. Send the downloaded HTML file directly to that person.</p>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px;">
+        <input class="form-input" id="bakeNameInput" type="text" placeholder="Recipient's full name…" style="width:240px;">
+        <button class="btn btn-gold" onclick="bakeAndDownload()">Generate Personalized File</button>
+      </div>
+      <p style="font-size:12px;color:var(--text-muted);">The recipient opens the HTML file in their browser and sees their assignments highlighted automatically — no setup needed.</p>
+    </div>
+    <!-- EXCEL IMPORT -->
+    <div class="swap-section admin-only">
+      <h3>📊 Import from Excel</h3>
+      <p style="font-size:13px;color:var(--text-muted);margin-bottom:14px;">
+        Upload an Excel file (.xlsx) with your assignments. The file must have a sheet named
+        <strong>Friday</strong>, <strong>Saturday</strong>, or <strong>Sunday</strong> (or all three).
+        Each sheet needs these columns in order:
+        <strong>Name, Congregation, Phone, Location, Time</strong>.
+      </p>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px;">
+        <button class="btn btn-gold" onclick="downloadExcelTemplate()">⬇ Download Template</button>
+        <input type="file" id="excelImportInput" accept=".xlsx,.xls" style="display:none;" onchange="handleExcelImport(event)">
+        <button class="btn btn-primary" onclick="document.getElementById('excelImportInput').click()">📂 Choose Excel File…</button>
+      </div>
+      <div style="background:var(--cream);border-radius:8px;padding:12px 14px;font-size:12px;color:var(--text-muted);border:1px solid var(--border);">
+        ⚠️ Importing will <strong>add</strong> rows to existing data. It will not delete what's already there.
+        Use the day tabs to remove duplicates if needed.
+      </div>
+      <div id="excelImportMessage" style="margin-top:12px;font-size:13px;"></div>
+    </div>
+
+  </div><!-- /tab-share -->
+
+<!-- EDIT MODAL -->
+<div class="modal-overlay" id="editModal">
+  <div class="modal">
+    <h3>Edit Assignment</h3>
+    <div class="form-grid">
+      <div class="form-group"><label>Name</label><input class="form-input" id="edit-name"></div>
+      <div class="form-group"><label>Congregation</label><input class="form-input" id="edit-cong"></div>
+      <div class="form-group"><label>Mobile #</label><input class="form-input" id="edit-phone" type="tel"></div>
+      <div class="form-group"><label>Location</label><input class="form-input" id="edit-location"></div>
+      <div class="form-group"><label>Time</label><input class="form-input" id="edit-time"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveEdit()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- MAP NAME MODAL -->
+<div class="modal-overlay" id="mapNameModal">
+  <div class="modal">
+    <h3>Name This Map</h3>
+    <div class="form-group">
+      <label>Map Name</label>
+      <input class="form-input" id="mapNameInput" placeholder="e.g. Section A – Main Hall">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeMapModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="confirmMapName()">Add Map</button>
+    </div>
+  </div>
+</div>
+
+<!-- LOGIN MODAL -->
+<div class="modal-overlay" id="loginModal">
+  <div class="modal">
+    <h3>🔐 Admin Login</h3>
+    <div id="loginError" style="display:none;margin-bottom:12px;padding:10px 12px;background:#fdecea;border-radius:6px;font-size:13px;color:var(--danger);"></div>
+    <div class="form-group" style="margin-bottom:12px;">
+      <label>Email</label>
+      <input class="form-input" id="loginEmail" type="email" placeholder="admin@example.com">
+    </div>
+    <div class="form-group" style="margin-bottom:4px;">
+      <label>Password</label>
+      <input class="form-input" id="loginPassword" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeLoginModal()">Cancel</button>
+      <button class="btn btn-primary" id="loginSubmitBtn" onclick="doLogin()">Sign In</button>
+    </div>
+  </div>
+</div>
+
+<!-- MAP LIGHTBOX -->
+<div class="map-lightbox-overlay" id="mapLightbox" onclick="closeMapLightbox(event)">
+  <div class="map-lightbox">
+    <div class="map-lightbox-header">
+      <div class="map-lightbox-title" id="lightboxTitle">📍 Map</div>
+      <button class="map-lightbox-close" onclick="closeMapLightbox()">✕</button>
+    </div>
+    <div id="lightboxBody"></div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── SUPABASE CONFIG ──────────────────────────────────────────────────────────
+const SUPABASE_URL = 'https://upserpiwryxehojojylx.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVwc2VycGl3cnl4ZWhvam9qeWx4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI0MzMxMDYsImV4cCI6MjA5ODAwOTEwNn0.C4bKl8a1X8pmGoay-Sh9QVeFLqC4eFnG96NB3-lQV0k';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+// ─── STATE ────────────────────────────────────────────────────────────────────
+let data = { friday: [], saturday: [], sunday: [], maps: [], captains: [] };
+let myName = '';
+let editContext = null;
+let pendingMapData = null;
+let isAdmin = false;
+let currentUser = null;
+
+// ─── AUTH ─────────────────────────────────────────────────────────────────────
+function openLoginModal() {
+  document.getElementById('loginModal').classList.add('open');
+  document.getElementById('loginEmail').focus();
+}
+function closeLoginModal() {
+  document.getElementById('loginModal').classList.remove('open');
+  document.getElementById('loginError').style.display = 'none';
+  document.getElementById('loginEmail').value = '';
+  document.getElementById('loginPassword').value = '';
+}
+
+async function doLogin() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  const btn = document.getElementById('loginSubmitBtn');
+  const errEl = document.getElementById('loginError');
+  if (!email || !password) { showLoginError('Please enter email and password.'); return; }
+  btn.textContent = 'Signing in…';
+  btn.disabled = true;
+  const { data: authData, error } = await sb.auth.signInWithPassword({ email, password });
+  btn.textContent = 'Sign In';
+  btn.disabled = false;
+  if (error) { showLoginError(error.message); return; }
+  currentUser = authData.user;
+  isAdmin = true;
+  closeLoginModal();
+  updateAuthUI();
+  renderAll();
+  showToast('Signed in as admin ✓');
+}
+
+async function doLogout() {
+  await sb.auth.signOut();
+  currentUser = null;
+  isAdmin = false;
+  updateAuthUI();
+  renderAll();
+  showToast('Signed out.');
+}
+
+function showLoginError(msg) {
+  const el = document.getElementById('loginError');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+function updateAuthUI() {
+  const label = document.getElementById('authLabel');
+  const btn = document.getElementById('authBtn');
+  if (isAdmin) {
+    label.textContent = '🔓 Admin';
+    label.style.color = 'var(--gold-light)';
+    btn.textContent = 'Sign Out';
+    btn.onclick = doLogout;
+  } else {
+    label.textContent = 'View Only';
+    label.style.color = 'rgba(255,255,255,0.5)';
+    btn.textContent = 'Admin Login';
+    btn.onclick = openLoginModal;
+  }
+  // Show/hide all add/edit/delete buttons based on role
+  document.querySelectorAll('.admin-only').forEach(el => {
+    el.style.display = isAdmin ? '' : 'none';
+  });
+}
+
+// ─── SUPABASE DATA LOADING ────────────────────────────────────────────────────
+async function loadFromSupabase() {
+  showToast('Loading…');
+  try {
+    const [aRes, mRes, cRes] = await Promise.all([
+      sb.from('assignments').select('*').order('created_at'),
+      sb.from('maps').select('*').order('created_at'),
+      sb.from('captains').select('*').order('created_at'),
+    ]);
+
+    data.friday   = (aRes.data || []).filter(r => r.day === 'friday').map(toLocal);
+    data.saturday = (aRes.data || []).filter(r => r.day === 'saturday').map(toLocal);
+    data.sunday   = (aRes.data || []).filter(r => r.day === 'sunday').map(toLocal);
+    data.maps     = (mRes.data || []).map(r => ({ id: r.id, name: r.name, src: r.src }));
+    data.captains = (cRes.data || []).map(r => ({ id: r.id, name: r.name, role: r.role, phone: r.phone }));
+
+    // Seed captains if empty
+    if (!data.captains.length) await seedCaptains();
+
+    renderAll();
+    showToast('Data loaded ✓');
+  } catch(e) {
+    showToast('Failed to load data.');
+    console.error(e);
+  }
+}
+
+function toLocal(r) {
+  return { id: r.id, name: r.name, congregation: r.congregation, phone: r.phone, location: r.location, time: r.time };
+}
+
+async function seedCaptains() {
+  const defaults = [
+    { name: 'Bazelais, Lesly',       role: 'Captain - Event Level',    phone: '570-534-9728' },
+    { name: 'Perez, Jose',           role: 'Captain - Concourse Level', phone: '714-520-1453' },
+    { name: 'White, Jeffery Keyman', role: 'Keyman Corridors',          phone: '646-660-5911' },
+  ];
+  const { data: rows } = await sb.from('captains').insert(defaults).select();
+  data.captains = (rows || []).map(r => ({ id: r.id, name: r.name, role: r.role, phone: r.phone }));
+}
+
+// ─── MY NAME ─────────────────────────────────────────────────────────────────
+function refreshMyCard() {
+  myName = document.getElementById('myNameInput').value.trim();
+  localStorage.setItem('convention_myname', myName);
+  const grid = document.getElementById('myAssignmentsGrid');
+  if (!myName) {
+    grid.innerHTML = '<div style="color:rgba(255,255,255,0.3);font-size:13px;font-style:italic;">Enter your name above to see your assignments</div>';
+    return;
+  }
+  const days = ['friday','saturday','sunday'];
+  const found = [];
+  days.forEach(day => {
+    data[day].filter(a => a.name.toLowerCase() === myName.toLowerCase())
+      .forEach(a => found.push({ day, ...a }));
+  });
+  if (!found.length) {
+    grid.innerHTML = `<div style="color:rgba(255,255,255,0.3);font-size:13px;font-style:italic;">No assignments found for "${myName}"</div>`;
+    return;
+  }
+  grid.innerHTML = found.map(a => `
+    <div class="my-assignment-chip">
+      <div class="my-chip-day">${a.day.charAt(0).toUpperCase()+a.day.slice(1)}</div>
+      <div class="my-chip-location">${esc(a.location)}</div>
+      <div class="my-chip-time">${esc(a.time)}</div>
+    </div>`).join('');
+}
+
+// ─── TABS ─────────────────────────────────────────────────────────────────────
+function switchTab(id) {
+  document.querySelectorAll('.tab-btn').forEach(b => {
+    b.classList.toggle('active', b.getAttribute('onclick').includes(`'${id}'`));
+  });
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('tab-'+id).classList.add('active');
+}
+
+// ─── ASSIGNMENT CRUD ──────────────────────────────────────────────────────────
+const prefixes = { friday:'fri', saturday:'sat', sunday:'sun' };
+
+function toggleForm(day) {
+  if (!isAdmin) return;
+  document.getElementById('form-'+day).classList.toggle('open');
+}
+
+async function addAssignment(day) {
+  if (!isAdmin) return;
+  const p = prefixes[day];
+  const name = document.getElementById(`${p}-name`).value.trim();
+  if (!name) { showToast('Please enter a name.'); return; }
+  const entry = {
+    day,
+    name,
+    congregation: document.getElementById(`${p}-cong`).value.trim(),
+    phone:        document.getElementById(`${p}-phone`).value.trim(),
+    location:     document.getElementById(`${p}-location`).value.trim(),
+    time:         document.getElementById(`${p}-time`).value.trim(),
+  };
+  const { data: rows, error } = await sb.from('assignments').insert([entry]).select();
+  if (error) { showToast('Error saving assignment.'); console.error(error); return; }
+  data[day].push(toLocal(rows[0]));
+  ['name','cong','phone','location','time'].forEach(f => document.getElementById(`${p}-${f}`).value = '');
+  document.getElementById('form-'+day).classList.remove('open');
+  renderDay(day);
+  refreshMyCard();
+  showToast('Assignment saved.');
+}
+
+async function deleteAssignment(day, idx) {
+  if (!isAdmin) return;
+  if (!confirm('Delete this assignment?')) return;
+  const entry = data[day][idx];
+  if (entry.id) await sb.from('assignments').delete().eq('id', entry.id);
+  data[day].splice(idx, 1);
+  renderDay(day);
+  refreshMyCard();
+  runSearch();
+  showToast('Deleted.');
+}
+
+function openEdit(day, idx) {
+  if (!isAdmin) return;
+  editContext = { day, idx };
+  const a = data[day][idx];
+  document.getElementById('edit-name').value = a.name;
+  document.getElementById('edit-cong').value = a.congregation || '';
+  document.getElementById('edit-phone').value = a.phone || '';
+  document.getElementById('edit-location').value = a.location || '';
+  document.getElementById('edit-time').value = a.time || '';
+  document.getElementById('editModal').classList.add('open');
+}
+
+async function saveEdit() {
+  if (!isAdmin) return;
+  const { day, idx } = editContext;
+  const entry = data[day][idx];
+  const updated = {
+    name:         document.getElementById('edit-name').value.trim(),
+    congregation: document.getElementById('edit-cong').value.trim(),
+    phone:        document.getElementById('edit-phone').value.trim(),
+    location:     document.getElementById('edit-location').value.trim(),
+    time:         document.getElementById('edit-time').value.trim(),
+  };
+  if (entry.id) {
+    const { error } = await sb.from('assignments').update(updated).eq('id', entry.id);
+    if (error) { showToast('Error saving changes.'); console.error(error); return; }
+  }
+  data[day][idx] = { ...entry, ...updated };
+  closeModal();
+  renderDay(day);
+  refreshMyCard();
+  runSearch();
+  showToast('Changes saved.');
+}
+
+function closeModal() {
+  document.getElementById('editModal').classList.remove('open');
+  editContext = null;
+}
+
+function renderDay(day) {
+  const rows  = document.getElementById('rows-'+day);
+  const count = document.getElementById(day+'-count');
+  const arr   = data[day];
+  count.textContent = `${arr.length} assignment${arr.length !== 1 ? 's' : ''}`;
+  if (!arr.length) {
+    rows.innerHTML = '<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-msg">No assignments yet.</div></div>';
+    return;
+  }
+  rows.innerHTML = arr.map((a, i) => `
+    <div class="assignment-row">
+      <div><div class="row-name">${esc(a.name)}</div></div>
+      <div class="row-cong">${esc(a.congregation)}</div>
+      <div class="row-location">${esc(a.location)}</div>
+      <div class="row-time">${esc(a.time)}</div>
+      <div>${getMapButton(a.location)}</div>
+      <div class="row-actions admin-only" style="display:${isAdmin?'':'none'}">
+        <button class="btn btn-ghost btn-sm" onclick="openEdit('${day}',${i})">Edit</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteAssignment('${day}',${i})">✕</button>
+      </div>
+    </div>`).join('');
+}
+
+// ─── SEARCH ───────────────────────────────────────────────────────────────────
+function runSearch() {
+  const q = document.getElementById('lookupInput').value.trim().toLowerCase();
+  const results = document.getElementById('searchResults');
+  if (!q) { results.style.display = 'none'; return; }
+  const hits = [];
+  ['friday','saturday','sunday'].forEach(day => {
+    data[day].forEach((a,i) => {
+      if ((a.name||'').toLowerCase().includes(q) || (a.congregation||'').toLowerCase().includes(q))
+        hits.push({ day, idx: i, ...a });
+    });
+  });
+  if (!hits.length) {
+    results.style.display = 'block';
+    results.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:13px;">No assignments found.</div>';
+    return;
+  }
+  results.style.display = 'block';
+  results.innerHTML = hits.map(h => `
+    <div class="search-result-row">
+      <div><div class="result-name">${esc(h.name)}</div><div class="result-meta">${esc(h.congregation)}</div></div>
+      <div><div style="font-size:13px;font-weight:500;">${esc(h.location)}</div><div class="result-meta">${esc(h.time)}</div></div>
+      <div><span class="result-tag tag-${h.day}">${h.day.charAt(0).toUpperCase()+h.day.slice(1)}</span></div>
+      <div>${getMapButton(h.location)}</div>
+    </div>`).join('');
+}
+
+// ─── SWAP ─────────────────────────────────────────────────────────────────────
+async function doSwap() {
+  if (!isAdmin) { showToast('Admin access required to swap assignments.'); return; }
+  const n1 = document.getElementById('swapName1').value.trim().toLowerCase();
+  const n2 = document.getElementById('swapName2').value.trim().toLowerCase();
+  const msg = document.getElementById('swapMessage');
+  if (!n1 || !n2) { msg.innerHTML = '<span style="color:var(--danger)">Please enter both names.</span>'; return; }
+  let swapped = 0;
+  const updates = [];
+  ['friday','saturday','sunday'].forEach(day => {
+    const i1 = data[day].findIndex(a => a.name.toLowerCase() === n1);
+    const i2 = data[day].findIndex(a => a.name.toLowerCase() === n2);
+    if (i1 !== -1 && i2 !== -1) {
+      const tmp = data[day][i1].name;
+      data[day][i1].name = data[day][i2].name;
+      data[day][i2].name = tmp;
+      if (data[day][i1].id) updates.push(sb.from('assignments').update({ name: data[day][i1].name }).eq('id', data[day][i1].id));
+      if (data[day][i2].id) updates.push(sb.from('assignments').update({ name: data[day][i2].name }).eq('id', data[day][i2].id));
+      swapped++;
+    } else if (i1 !== -1) {
+      data[day][i1].name = document.getElementById('swapName2').value.trim();
+      if (data[day][i1].id) updates.push(sb.from('assignments').update({ name: data[day][i1].name }).eq('id', data[day][i1].id));
+      swapped++;
+    } else if (i2 !== -1) {
+      data[day][i2].name = document.getElementById('swapName1').value.trim();
+      if (data[day][i2].id) updates.push(sb.from('assignments').update({ name: data[day][i2].name }).eq('id', data[day][i2].id));
+      swapped++;
+    }
+  });
+  if (!swapped) { msg.innerHTML = '<span style="color:var(--danger)">Neither name was found in any assignment.</span>'; return; }
+  await Promise.all(updates);
+  ['friday','saturday','sunday'].forEach(renderDay);
+  refreshMyCard();
+  runSearch();
+  msg.innerHTML = `<span style="color:var(--success)">✓ Swapped across ${swapped} day(s).</span>`;
+  showToast('Names swapped.');
+}
+
+// ─── MAP LIGHTBOX ─────────────────────────────────────────────────────────────
+function getMapLevel(location) {
+  const loc = (location || '').trim().toUpperCase();
+  if (loc.startsWith('CL')) return 'CL';
+  if (loc.startsWith('EL')) return 'EL';
+  return null;
+}
+function getMapButton(location) {
+  const level = getMapLevel(location);
+  if (!level) return '<span style="font-size:12px;color:var(--border)">—</span>';
+  const label = level === 'CL' ? 'Concourse Level' : 'Event Level';
+  const cls   = level === 'CL' ? 'map-link map-link-cl' : 'map-link map-link-el';
+  return `<button class="${cls}" onclick="openMapLightbox('${level}')">📍 ${label}</button>`;
+}
+function openMapLightbox(level) {
+  const terms = level === 'CL' ? ['concourse level','concourse','cl'] : ['event level','event','el'];
+  const found = data.maps.find(m => terms.some(t => m.name.toLowerCase().includes(t)));
+  const fullLabel = level === 'CL' ? 'Concourse Level Map' : 'Event Level Map';
+  document.getElementById('lightboxTitle').textContent = '📍 ' + fullLabel;
+  document.getElementById('lightboxBody').innerHTML = found
+    ? `<img src="${found.src}" alt="${esc(found.name)}" style="display:block;max-width:100%;">`
+    : `<div class="map-lightbox-empty"><div class="empty-icon">🗺</div><p>No <strong>${fullLabel}</strong> uploaded yet.</p><p style="margin-top:8px;">Go to the <strong>Maps</strong> tab and upload an image whose name includes "<strong>${level==='CL'?'Concourse':'Event'}</strong>".</p></div>`;
+  document.getElementById('mapLightbox').classList.add('open');
+}
+function closeMapLightbox(e) {
+  if (e && e.target !== document.getElementById('mapLightbox')) return;
+  document.getElementById('mapLightbox').classList.remove('open');
+}
+
+// ─── MAPS CRUD ────────────────────────────────────────────────────────────────
+function triggerMapUpload() {
+  if (!isAdmin) return;
+  document.getElementById('mapFileInput').click();
+}
+function handleMapUpload(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    pendingMapData = ev.target.result;
+    document.getElementById('mapNameInput').value = file.name.replace(/\.[^.]+$/, '');
+    document.getElementById('mapNameModal').classList.add('open');
+  };
+  reader.readAsDataURL(file);
+  e.target.value = '';
+}
+function closeMapModal() {
+  document.getElementById('mapNameModal').classList.remove('open');
+  pendingMapData = null;
+}
+async function confirmMapName() {
+  if (!isAdmin) return;
+  const name = document.getElementById('mapNameInput').value.trim() || 'Unnamed Map';
+  const { data: rows, error } = await sb.from('maps').insert([{ name, src: pendingMapData }]).select();
+  if (error) { showToast('Error saving map.'); console.error(error); return; }
+  data.maps.push({ id: rows[0].id, name, src: pendingMapData });
+  closeMapModal();
+  renderMaps();
+  showToast('Map added.');
+}
+async function deleteMap(idx) {
+  if (!isAdmin) return;
+  if (!confirm('Remove this map?')) return;
+  const m = data.maps[idx];
+  if (m.id) await sb.from('maps').delete().eq('id', m.id);
+  data.maps.splice(idx, 1);
+  renderMaps();
+}
+async function renameMap(idx) {
+  if (!isAdmin) return;
+  const newName = prompt('New name for this map:', data.maps[idx].name);
+  if (!newName) return;
+  const m = data.maps[idx];
+  if (m.id) await sb.from('maps').update({ name: newName.trim() }).eq('id', m.id);
+  data.maps[idx].name = newName.trim();
+  renderMaps();
+}
+function renderMaps() {
+  const grid  = document.getElementById('mapsGrid');
+  const empty = document.getElementById('mapsEmpty');
+  if (!data.maps.length) { grid.innerHTML = ''; empty.style.display = 'block'; return; }
+  empty.style.display = 'none';
+  grid.innerHTML = data.maps.map((m,i) => `
+    <div class="map-card">
+      <img class="map-card-img" src="${m.src}" alt="${esc(m.name)}">
+      <div class="map-card-footer">
+        <span class="map-card-name">${esc(m.name)}</span>
+        <div class="admin-only" style="display:${isAdmin?'flex':'none'};gap:6px;">
+          <button class="btn btn-ghost btn-sm" onclick="renameMap(${i})">✏️</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteMap(${i})">✕</button>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+// ─── CAPTAINS CRUD ────────────────────────────────────────────────────────────
+function toggleCaptainForm() {
+  if (!isAdmin) return;
+  document.getElementById('form-captains').classList.toggle('open');
+}
+async function addCaptain() {
+  if (!isAdmin) return;
+  const name = document.getElementById('cap-name').value.trim();
+  if (!name) { showToast('Please enter a name.'); return; }
+  const entry = {
+    name,
+    role:  document.getElementById('cap-role').value.trim(),
+    phone: document.getElementById('cap-phone').value.trim(),
+  };
+  const { data: rows, error } = await sb.from('captains').insert([entry]).select();
+  if (error) { showToast('Error saving captain.'); console.error(error); return; }
+  data.captains.push({ id: rows[0].id, ...entry });
+  ['name','role','phone'].forEach(f => document.getElementById('cap-'+f).value = '');
+  document.getElementById('form-captains').classList.remove('open');
+  renderCaptains();
+  showToast('Captain added.');
+}
+async function deleteCaptain(idx) {
+  if (!isAdmin) return;
+  if (!confirm('Remove this captain?')) return;
+  const c = data.captains[idx];
+  if (c.id) await sb.from('captains').delete().eq('id', c.id);
+  data.captains.splice(idx, 1);
+  renderCaptains();
+}
+function renderCaptains() {
+  const grid  = document.getElementById('captainsGrid');
+  const empty = document.getElementById('captainsEmpty');
+  if (!data.captains.length) { grid.innerHTML = ''; empty.style.display = 'block'; return; }
+  empty.style.display = 'none';
+  grid.innerHTML = data.captains.map((c,i) => `
+    <div class="captain-card">
+      <div class="captain-avatar">${c.name.charAt(0).toUpperCase()}</div>
+      <div class="captain-info">
+        <div class="captain-name">${esc(c.name)}</div>
+        <div class="captain-role">${esc(c.role)}</div>
+        ${c.phone ? `<div class="captain-phone">${esc(c.phone)}</div>` : ''}
+      </div>
+      ${c.phone ? `<a class="call-btn" href="tel:${esc(c.phone.replace(/\s/g,''))}" title="Call ${esc(c.name)}">📞</a>` : ''}
+      <button class="btn btn-danger btn-sm admin-only" style="display:${isAdmin?'':'none'};margin-left:4px;" onclick="deleteCaptain(${i})">✕</button>
+    </div>`).join('');
+}
+
+// ─── UTILS ────────────────────────────────────────────────────────────────────
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+function renderAll() {
+  ['friday','saturday','sunday'].forEach(renderDay);
+  renderMaps();
+  renderCaptains();
+  refreshMyCard();
+  updateAuthUI();
+}
+
+// ─── EXCEL IMPORT / TEMPLATE ─────────────────────────────────────────────────
+
+function downloadExcelTemplate() {
+  const wb = XLSX.utils.book_new();
+  const headers = [['Name', 'Congregation', 'Phone', 'Location', 'Time']];
+  const sampleFri = [
+    ['Smith, John',    'Congregation A', '555-100-0001', 'CL - Door 1',  '9:00 AM'],
+    ['Doe, Jane',      'Congregation B', '555-100-0002', 'EL - Section 3','1:00 PM'],
+  ];
+  const sampleSat = [
+    ['Brown, Mark',   'Congregation C', '555-100-0003', 'CL - Door 2',  '10:00 AM'],
+  ];
+  const sampleSun = [
+    ['Garcia, Maria', 'Congregation D', '555-100-0004', 'EL - Section 1','8:00 AM'],
+  ];
+
+  ['Friday','Saturday','Sunday'].forEach((day, i) => {
+    const sample = [sampleFri, sampleSat, sampleSun][i];
+    const ws = XLSX.utils.aoa_to_sheet([...headers, ...sample]);
+
+    // Column widths
+    ws['!cols'] = [
+      { wch: 22 }, { wch: 20 }, { wch: 16 }, { wch: 22 }, { wch: 12 }
+    ];
+
+    // Style header row bold (SheetJS community doesn't support cell styles,
+    // but column headers are clear enough from the sample rows)
+    XLSX.utils.book_append_sheet(wb, ws, day);
+  });
+
+  XLSX.writeFile(wb, 'AssignmentHub_Template.xlsx');
+  showToast('Template downloaded.');
+}
+
+async function handleExcelImport(e) {
+  const file = e.target.files[0];
+  e.target.value = '';
+  if (!file) return;
+  if (!isAdmin) { showToast('Admin access required.'); return; }
+
+  const msgEl = document.getElementById('excelImportMessage');
+  msgEl.innerHTML = '<span style="color:var(--text-muted)">Reading file…</span>';
+
+  const reader = new FileReader();
+  reader.onload = async ev => {
+    try {
+      const wb = XLSX.read(ev.target.result, { type: 'array' });
+      const days = ['Friday','Saturday','Sunday'];
+      const results = [];
+      let totalRows = 0;
+      let errorRows = 0;
+
+      for (const dayLabel of days) {
+        const sheet = wb.Sheets[dayLabel];
+        if (!sheet) continue;
+
+        const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+        if (rows.length < 2) continue; // header only, skip
+
+        const dataRows = rows.slice(1); // skip header
+        const toInsert = [];
+
+        for (const row of dataRows) {
+          const name = String(row[0] || '').trim();
+          if (!name) { errorRows++; continue; } // name required
+          toInsert.push({
+            day:          dayLabel.toLowerCase(),
+            name,
+            congregation: String(row[1] || '').trim(),
+            phone:        String(row[2] || '').trim(),
+            location:     String(row[3] || '').trim(),
+            time:         String(row[4] || '').trim(),
+          });
+        }
+
+        if (!toInsert.length) continue;
+
+        // Batch insert into Supabase
+        const { data: inserted, error } = await sb.from('assignments').insert(toInsert).select();
+        if (error) throw error;
+
+        // Add to local state
+        inserted.forEach(r => {
+          data[dayLabel.toLowerCase()].push({
+            id: r.id, name: r.name, congregation: r.congregation,
+            phone: r.phone, location: r.location, time: r.time
+          });
+        });
+
+        totalRows += inserted.length;
+        results.push(`${dayLabel}: ${inserted.length} row${inserted.length !== 1 ? 's' : ''}`);
+      }
+
+      renderAll();
+
+      let msg = `<span style="color:var(--success)">✓ Imported ${totalRows} assignment${totalRows !== 1 ? 's' : ''}`;
+      if (results.length) msg += ` — ${results.join(', ')}`;
+      if (errorRows) msg += `. ${errorRows} row(s) skipped (missing name)`;
+      msg += '.</span>';
+      msgEl.innerHTML = msg;
+      showToast(`Imported ${totalRows} assignments.`);
+
+    } catch(err) {
+      console.error(err);
+      msgEl.innerHTML = `<span style="color:var(--danger)">❌ Import failed: ${err.message || 'Unknown error'}. Make sure the file matches the template format.</span>`;
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+(async () => {
+  // Restore my name
+  myName = localStorage.getItem('convention_myname') || '';
+  if (myName) document.getElementById('myNameInput').value = myName;
+
+  // Check if already logged in from a previous session
+  const { data: sessionData } = await sb.auth.getSession();
+  if (sessionData?.session?.user) {
+    currentUser = sessionData.session.user;
+    isAdmin = true;
+  }
+
+  // Load all data from Supabase
+  await loadFromSupabase();
+  updateAuthUI();
+})();
+</script>
+</body>
+</html>
